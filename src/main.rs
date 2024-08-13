@@ -20,7 +20,7 @@ pub struct DriveFile{
 	thumbnailAccessKey: String,
 	webpublicAccessKey: String,
 	isLink:bool,
-	src: Option<String>,
+	url: Option<String>,
 }
 pub struct Request{
 	request_type:u8,
@@ -274,7 +274,7 @@ struct ResponseJson{
 impl From<DriveFile> for ResponseJson{
 	fn from(value: DriveFile) -> Self {
 		Self{
-			uri:value.src.unwrap_or_else(||String::new()),
+			uri:value.url.unwrap_or_else(||String::new()),
 			link:value.isLink,
 		}
 	}

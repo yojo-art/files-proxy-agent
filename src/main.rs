@@ -176,7 +176,7 @@ async fn load_from_db(pool: &Pool<Postgres>,req:Request)->Response{
 			};
 			sqlx::query_as::<_, DriveFile>(
 				"
-				SELECT \"thumbnailAccessKey\",\"webpublicAccessKey\",\"isLink\",src
+				SELECT \"thumbnailAccessKey\",\"webpublicAccessKey\",\"isLink\",url
 				FROM drive_file
 				WHERE \"webpublicAccessKey\" = $1
 				",
@@ -191,7 +191,7 @@ async fn load_from_db(pool: &Pool<Postgres>,req:Request)->Response{
 			};
 			sqlx::query_as::<_, DriveFile>(
 				"
-				SELECT \"thumbnailAccessKey\",\"webpublicAccessKey\",\"isLink\",src
+				SELECT \"thumbnailAccessKey\",\"webpublicAccessKey\",\"isLink\",url
 				FROM drive_file
 				WHERE \"thumbnailAccessKey\" = $1
 				",
@@ -213,7 +213,7 @@ async fn load_from_db(pool: &Pool<Postgres>,req:Request)->Response{
 			};
 			sqlx::query_as::<_, DriveFile>(
 				"
-				SELECT \"thumbnailAccessKey\",\"webpublicAccessKey\",\"isLink\",src
+				SELECT \"thumbnailAccessKey\",\"webpublicAccessKey\",\"isLink\",url
 				FROM drive_file
 				WHERE \"accessKey\" = $1
 				",

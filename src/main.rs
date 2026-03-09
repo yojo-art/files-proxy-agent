@@ -21,6 +21,7 @@ struct ConfigFile {
 	database_url: Option<String>,
 	tcp_host: String,
 	tcp_port: u16,
+	tcp_timeout: Option<u64>,
 }
 
 #[derive(sqlx::FromRow, Debug)]
@@ -81,7 +82,14 @@ fn main() {
 		loop {
 			match TcpStream::connect(format!("{}:{}", config.tcp_host, config.tcp_port)).await {
 				Ok(con) => {
-					tcp_worker(con, req_sender.clone(), res_s1.clone(), &mut res_receiver).await;
+					tcp_worker(
+						con,
+						req_sender.clone(),
+						res_s1.clone(),
+						&mut res_receiver,
+						config.tcp_timeout,
+					)
+					.await;
 				}
 				Err(err) => {
 					eprintln!("{}", err);
@@ -114,6 +122,7 @@ async fn tcp_worker(
 	req_sender: Sender<Request>,
 	res_sender: Sender<Response>,
 	res_receiver: &mut Receiver<Response>,
+	tcp_timeout: Option<u64>,
 ) {
 	let (reader, writer) = tcp.into_split();
 	let mut reader = BufReader::new(reader);
@@ -136,8 +145,11 @@ async fn tcp_worker(
 			})
 		}
 		loop {
-			if let Ok(Ok(req)) =
-				tokio::time::timeout(Duration::from_secs(5), read_request(&mut reader)).await
+			if let Ok(Ok(req)) = tokio::time::timeout(
+				Duration::from_secs(tcp_timeout.unwrap_or(5)),
+				read_request(&mut reader),
+			)
+			.await
 			{
 				if let Err(e) = req_sender.send(req).await {
 					println!("Request Queue Send Error {}", e);
@@ -176,8 +188,11 @@ async fn tcp_worker(
 				writer.flush().await?;
 				Ok(())
 			}
-			if let Err(e) =
-				tokio::time::timeout(Duration::from_secs(5), write_response(&mut writer, res)).await
+			if let Err(e) = tokio::time::timeout(
+				Duration::from_secs(tcp_timeout.unwrap_or(5)),
+				write_response(&mut writer, res),
+			)
+			.await
 			{
 				eprintln!("Response Network Send Error {}", e);
 				break;

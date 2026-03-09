@@ -127,6 +127,7 @@ async fn tcp_worker(
 	let (reader, writer) = tcp.into_split();
 	let mut reader = BufReader::new(reader);
 	let mut writer = BufWriter::new(writer);
+	let res_sender0 = res_sender.clone();
 	tokio::runtime::Handle::current().spawn(async move {
 		async fn read_request(reader: &mut BufReader<OwnedReadHalf>) -> std::io::Result<Request> {
 			let request_type = reader.read_u8().await?;
@@ -145,17 +146,24 @@ async fn tcp_worker(
 			})
 		}
 		loop {
-			if let Ok(Ok(req)) = tokio::time::timeout(
+			match tokio::time::timeout(
 				Duration::from_secs(tcp_timeout.unwrap_or(5)),
 				read_request(&mut reader),
 			)
 			.await
 			{
-				if let Err(e) = req_sender.send(req).await {
-					println!("Request Queue Send Error {}", e);
+				Ok(Ok(req)) => {
+					if let Err(e) = req_sender.send(req).await {
+						println!("Request Queue Send Error {}", e);
+					}
 				}
-			} else {
-				break;
+				Ok(Err(err)) => {
+					eprintln!("{:?}", err);
+					break;
+				}
+				Err(_) => {
+					break;
+				}
 			}
 		}
 		println!("EndReciv");
@@ -167,6 +175,23 @@ async fn tcp_worker(
 			})
 			.await
 			.unwrap();
+	});
+
+	tokio::runtime::Handle::current().spawn(async move {
+		loop {
+			if let Err(e) = res_sender0
+				.send(Response {
+					status: 100,
+					id: 0,
+					json: None,
+				})
+				.await
+			{
+				eprintln!("{:?}", e);
+				std::process::exit(1);
+			}
+			tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+		}
 	});
 	loop {
 		if let Some(res) = res_receiver.recv().await {

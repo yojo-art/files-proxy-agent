@@ -22,6 +22,7 @@ struct ConfigFile {
 	tcp_host: String,
 	tcp_port: u16,
 	tcp_timeout: Option<u64>,
+	tcp_ping: Option<u64>,
 }
 
 #[derive(sqlx::FromRow, Debug)]
@@ -88,6 +89,7 @@ fn main() {
 						res_s1.clone(),
 						&mut res_receiver,
 						config.tcp_timeout,
+						config.tcp_ping,
 					)
 					.await;
 				}
@@ -123,6 +125,7 @@ async fn tcp_worker(
 	res_sender: Sender<Response>,
 	res_receiver: &mut Receiver<Response>,
 	tcp_timeout: Option<u64>,
+	tcp_ping: Option<u64>,
 ) {
 	let (reader, writer) = tcp.into_split();
 	let mut reader = BufReader::new(reader);
@@ -147,7 +150,7 @@ async fn tcp_worker(
 		}
 		loop {
 			match tokio::time::timeout(
-				Duration::from_secs(tcp_timeout.unwrap_or(5)),
+				Duration::from_secs(tcp_timeout.unwrap_or(60)),
 				read_request(&mut reader),
 			)
 			.await
@@ -190,7 +193,7 @@ async fn tcp_worker(
 				eprintln!("{:?}", e);
 				std::process::exit(1);
 			}
-			tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+			tokio::time::sleep(tokio::time::Duration::from_secs(tcp_ping.unwrap_or(1))).await;
 		}
 	});
 	loop {
@@ -214,7 +217,7 @@ async fn tcp_worker(
 				Ok(())
 			}
 			if let Err(e) = tokio::time::timeout(
-				Duration::from_secs(tcp_timeout.unwrap_or(5)),
+				Duration::from_secs(tcp_timeout.unwrap_or(60)),
 				write_response(&mut writer, res),
 			)
 			.await

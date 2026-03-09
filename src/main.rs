@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use tokio::{
@@ -134,7 +136,9 @@ async fn tcp_worker(
 			})
 		}
 		loop {
-			if let Ok(req) = read_request(&mut reader).await {
+			if let Ok(Ok(req)) =
+				tokio::time::timeout(Duration::from_secs(5), read_request(&mut reader)).await
+			{
 				if let Err(e) = req_sender.send(req).await {
 					println!("Request Queue Send Error {}", e);
 				}
@@ -172,7 +176,9 @@ async fn tcp_worker(
 				writer.flush().await?;
 				Ok(())
 			}
-			if let Err(e) = write_response(&mut writer, res).await {
+			if let Err(e) =
+				tokio::time::timeout(Duration::from_secs(5), write_response(&mut writer, res)).await
+			{
 				eprintln!("Response Network Send Error {}", e);
 				break;
 			}
